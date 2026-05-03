@@ -88,13 +88,32 @@ layout: two-cols-header
 
 # How did Facebook do this? 🤔
 
+::left::
+
+<div class="mt-15">
+
 - **Ent** — a rich entity/domain model in Hack
 - **GraphQL** — a *wire format* for querying Ent
-- Probably few resolvers, graph-based auth, graph-based traversal, etc.
+- Probably fewer, lightweight resolvers
+- Graph-based traversals, graph-based auth, etc.
 - The domain model came first
 
-<div v-click class="mt-10 text-2xl">
-  <span class="text-joist font-bold">Joist</span> = entity-based ORM for TypeScript/Postgres
+</div>
+
+::right::
+
+<div v-click="1">
+
+...at Homebound, we built
+
+- **Joist** — a rich entity/domain model in TypeScript
+- **GraphQL** — a *wire format* for querying models
+- Fewer, lightweight resolvers
+- Graph-based traversals, graph-based auth, etc.
+- The domain model comes first
+
+😅
+
 </div>
 
 <!--
@@ -219,7 +238,8 @@ import { Book } from "src/entities";
 import { entityResolver } from "src/resolvers/utils";
 
 export const bookResolvers: BookResolvers = {
-  // Maps entity fields/relations by default
+  // Maps entity fields/relations by default, including
+  // m2o, o2m, o2o, m2m (only if exposed in the schema)
   ...entityResolver(Book),
   // Implement one-off field resolvers
 };

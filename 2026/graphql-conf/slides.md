@@ -53,7 +53,7 @@ layout: default
 # Clients love GraphQL ♥️
 
 - **Relay** + **Apollo** set the bar for client-side DX
-- GraphQL "fat shapes" subgraphs are super-easy to render
+- GraphQL "fat shapes" / subgraphs are super-easy to render
 - Even REST wants to *look* like GraphQL now
 
 <div v-click class="mt-12 text-joist text-2xl">
@@ -314,8 +314,8 @@ async function someComplicatedLogic(authors: Author[]) {
 }
 
 
-// em.flush() invokes the rule for each dirty author,
-// and all authors' books are still loaded in 1 SQL call
+// Still N+1 safe; no Rails-style "pull the populate hint up
+// until it is 'outside the loop'" refactorings
 async function someHelperMethod(a: Author) {
   const books = await a.books.load();
   return books.map(b => b.title).join(", ");
@@ -516,37 +516,45 @@ layout: center
 class: text-center
 ---
 
-# Joist
+# Building a Great Backend DX
 
-<div class="mt-6 text-lg text-left inline-block">
+<div class="mt-4 text-2xl text-left inline-block leading-relaxed">
 
-- *Framework for Majestic Monoliths*
-- *Robust domain models*
-- *Entities on the (GraphQL) wire*
+1. Build an Entity graph first
+2. Solve batching, validation, and business logic in the model
+3. Then layer GraphQL on top as the wire format
 
 </div>
 
-<div class="mt-14 grid grid-cols-3 gap-6">
+<div v-click>
+
+<div class="mt-8 text-3xl">
+  ...or just use <span class="text-joist font-bold">Joist 🚀</span>
+</div>
+
+<div class="mt-12 grid grid-cols-3 gap-6 text-sm">
   <div>
-    <div class="text-joist font-bold">Docs</div>
+    <a href="https://joist-orm.io" class="text-joist font-bold">Docs</a>
     <div class="opacity-85">joist-orm.io</div>
   </div>
   <div>
-    <div class="text-joist font-bold">GitHub</div>
+    <a href="https://github.com/joist-orm/joist-orm" class="text-joist font-bold">GitHub</a>
     <div class="opacity-85">joist-orm/joist-orm</div>
   </div>
   <div>
-    <div class="text-joist font-bold">Discord</div>
+    <a href="https://joist-orm.io/discord" class="text-joist font-bold">Discord</a>
     <div class="opacity-85">joist-orm.io/discord</div>
   </div>
 </div>
 
-<div class="mt-14 text-joist text-3xl">
+<div class="mt-12 text-joist text-3xl">
 Thanks!
 </div>
 
 <div class="mt-2 text-lg opacity-75">
 Stephen Haberman
+</div>
+
 </div>
 
 <!-- Because of the robust domain models, we can put entities on the wire ... and it's fun. -->

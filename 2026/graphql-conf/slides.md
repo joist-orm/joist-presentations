@@ -241,7 +241,8 @@ export const bookResolvers: BookResolvers = {
   // Maps entity fields/relations by default, including
   // m2o, o2m, o2o, m2m (only if exposed in the schema)
   ...entityResolver(Book),
-  // Implement one-off field resolvers
+
+  // Implement one-off field resolvers as/if needed
 };
 ```
 

@@ -265,10 +265,14 @@ layout: two-cols-header
 
 ```ts
 const author = await em.load(Author, id);
-// compile error, books is unloaded
+
+// compile error, the type system knows "books is not
+// loaded"; no TypeORM unloaded-at-runtime footguns
 console.log(author.books.get);
+
 // Forces safe await-based pattern by default
 const books = await author.books.load();
+
 // ...but boilerplately
 const reviews = (await Promise.all(
   books.map(b => b.reviews.load())
@@ -301,9 +305,9 @@ const fourStar = author.books.get
 layout: two-cols-header
 ---
 
-# 3. Validation Graph
+# 3. Graph Validation
 
-<div class="text-lg -mt-1">Invariants belong in entities, not mutations or endpoints</div>
+<div class="text-lg -mt-1">Invariants belong in entities &mdash; not mutations or endpoints</div>
 
 ::left::
 
@@ -320,7 +324,7 @@ if (input.name.length > 200)
 if (input.name?.length > 200)
   throw new UserError("too long");
 
-// bulk import script
+// bulk import/csv upload is a separate endpoint
 // (forgotten — rule drifts)
 ```
 

@@ -225,6 +225,9 @@ const allBooks = await Promise.all(
 
 // But really 1 SQL query for all 100 authors:
 // SELECT * FROM books WHERE author_id IN (...)
+
+// All graph traversal (m2o, o2m, o2o, m2m) is N+1
+// safe, including em.find-in-a-loop
 ```
 
 ::right::
@@ -334,20 +337,23 @@ if (input.name?.length > 200)
 
 ```ts
 // Author.ts
-// Simple field-level rule
-config.addRule("name", (a) => {
-  if (a.name.length > 200)
-    return "name too long";
+// Simple field-level rule -- zod can do this
+authorConfig.addRule("name", (a) => {
+  if (a.name.length > 200) return "name too long";
 });
 
-// Complicated cross-entity rules: re-runs when
-// any of the author's books' titles change
-config.addRule({ books: "title" }, (a) => {
-  if (a.books.get.some(b => b.title === a.name))
-    return "book title can't match author name";
-});
+// Cross-entity rules/invariants -- zod cannot do this
+authorConfig.addRule(
+  { books: "title" }, // Watch this subgraph
+  // Rerun this lambda whenever it changes
+  (a) => {
+    if (a.books.get.some(b => b.title === a.name))
+      return "book title can't match author name";
+  }
+);
 
-config.addRule(cannotBeUpdated("type"));
+// Create reusable `cannot...` rules
+authorConfig.addRule(cannotBeUpdated("type"));
 ```
 
 ---

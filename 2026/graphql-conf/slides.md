@@ -107,7 +107,7 @@ layout: two-cols-header
 ...at Homebound, we built
 
 - **Joist** — a rich entity/domain model in TypeScript
-- **GraphQL** — a *wire format* for querying models
+- Using **GraphQL** as a *wire format* for models
 - Fewer, lightweight resolvers
 - Graph-based traversals, graph-based auth, etc.
 - The domain model comes first
@@ -204,102 +204,9 @@ DB &rarr; entities &rarr; GraphQL
 layout: two-cols-header
 ---
 
-# 1. Query Resolvers
+# 1. Safe Graph Traversal
 
-<div class="text-lg -mt-1">Every field + relation, N+1 safe</div>
-
-::left::
-
-**Before** — a `DataLoader` per relation
-
-```ts
-const authorLoader = new DataLoader(async (ids) => {
-  const rows = await db.authors
-    .whereIn("id", ids);
-  return ids.map(id =>
-    rows.find(r => r.id === id));
-});
-
-const bookResolvers = {
-  Book: {
-    author:  (b) => authorLoader.load(b.authorId),
-    reviews: (b) => reviewsByBookLoader.load(b.id),
-    // ...repeat per relation
-  },
-};
-```
-
-::right::
-
-**After** — one liner
-
-```ts
-import { Book } from "src/entities";
-import { entityResolver } from "src/resolvers/utils";
-
-export const bookResolvers: BookResolvers = {
-  // Maps entity fields/relations by default, including
-  // m2o, o2m, o2o, m2m (only if exposed in the schema)
-  ...entityResolver(Book),
-
-  // Implement one-off field resolvers as/if needed
-};
-```
-
----
-layout: two-cols-header
----
-
-# 2. Mutation Resolvers
-
-<div class="text-lg -mt-1">Map inputs to entities, validation on the model</div>
-
-::left::
-
-**Before** — hand-wired partial updates
-
-```ts
-async function saveAuthor(_, { input }, ctx) {
-  const a = input.id
-    ? await ctx.em.load(Author, input.id)
-    : ctx.em.create(Author, {});
-  if (input.name !== undefined) a.name = input.name;
-  if (input.bio  !== undefined) a.bio  = input.bio;
-  // ...20 more fields
-  if (input.bookIds)
-    a.books.set(
-      await ctx.em.loadAll(Book, input.bookIds));
-  await validateAuthor(a);
-  await db.insert(authors).values(a).returning();
-  return a;
-}
-```
-
-::right::
-
-**After** — `saveEntity`
-
-```ts
-import { saveEntity } from "src/resolvers/utils";
-
-export const saveAuthor = {
-  async saveAuthor(_, args, { em }) {
-    // Upsert and copy fields that map 1:1 automatically
-    const author = await saveEntity(em, Author, args.input);
-    // Run validations, reactions, and issue SQL calls
-    await em.flush();  
-    return { author };
-  },
-};
-```
-
----
-layout: two-cols-header
----
-
-# 3. Dataloaders for Free
-
-<div class="text-lg -mt-1">No N+1s</div>
+<div class="text-lg -mt-1">No N+1s &mdash; dataloaders for free</div>
 
 ::left::
 
@@ -328,6 +235,7 @@ const allBooks = await Promise.all(
 // Some big gnarly function
 async function someComplicatedLogic(authors: Author[]) {
   // ...do some stuff...
+  // note: _no up-front populate hint_
   await authors.asyncForEach(async (a) => {
     // lots of lines
     await helerMethod(a);
@@ -347,9 +255,9 @@ async function someHelperMethod(a: Author) {
 layout: two-cols-header
 ---
 
-# 4. Type-safe Relation Loading
+# 2. Succinct Graph Traversal
 
-<div class="text-lg -mt-1">"Load in a loop" is safe but ugly, instead declare the shape up-front</div>
+<div class="text-lg -mt-1">"Load in a loop" is safe but ugly &mdash; instead populate shapes</div>
 
 ::left::
 
@@ -375,8 +283,11 @@ const fourStar = reviews
 
 ```ts
 // Typed as `Loaded<Author, { books: "reviews" }>`
-const author = await em.populate(id, {
+const author = await em.load(Author, id, {
+  // Database-backed m2o/o2m/m2m collections
   books: "reviews",
+  // Or derived values, displayName is an async method
+  comments: "displayName"
 });
 
 // No awaits!
@@ -390,7 +301,7 @@ const fourStar = author.books.get
 layout: two-cols-header
 ---
 
-# 5. Validation Rules
+# 3. Validation Graph
 
 <div class="text-lg -mt-1">Invariants belong in entities, not mutations or endpoints</div>
 
@@ -439,7 +350,7 @@ config.addRule(cannotBeUpdated("type"));
 layout: two-cols-header
 ---
 
-# 6. Derived Fields
+# 4. Derived Fields
 
 <div class="text-lg -mt-1">Let Joist track subgraph dependencies</div>
 
@@ -486,7 +397,7 @@ class Publisher {
 layout: two-cols-header
 ---
 
-# 7. Graph-based Auth
+# 5. Graph-based Auth
 
 <div class="text-lg -mt-1">Bring your own query AST plugin</div>
 
@@ -531,6 +442,99 @@ em.addPlugin(new TenantPlugin(tenantId));
 <div class="text-xs opacity-60 mt-1">
 Implementing <code>RbacPlugin</code> is an exercise for the reader
 </div>
+
+---
+layout: two-cols-header
+---
+
+# 6. Query Resolvers
+
+<div class="text-lg -mt-1">Every field + relation, N+1 safe</div>
+
+::left::
+
+**Before** — a `DataLoader` per relation
+
+```ts
+const authorLoader = new DataLoader(async (ids) => {
+  const rows = await db.authors
+    .whereIn("id", ids);
+  return ids.map(id =>
+    rows.find(r => r.id === id));
+});
+
+const bookResolvers = {
+  Book: {
+    author:  (b) => authorLoader.load(b.authorId),
+    reviews: (b) => reviewsByBookLoader.load(b.id),
+    // ...repeat per relation
+  },
+};
+```
+
+::right::
+
+**After** — one liner
+
+```ts
+import { Book } from "src/entities";
+import { entityResolver } from "src/resolvers/utils";
+
+export const bookResolvers: BookResolvers = {
+  // Maps entity fields/relations by default, including
+  // m2o, o2m, o2o, m2m (only if exposed in the schema)
+  ...entityResolver(Book),
+
+  // Implement one-off field resolvers as/if needed
+};
+```
+
+---
+layout: two-cols-header
+---
+
+# 7. Mutation Resolvers
+
+<div class="text-lg -mt-1">Map inputs to entities, validation on the model</div>
+
+::left::
+
+**Before** — hand-wired partial updates
+
+```ts
+async function saveAuthor(_, { input }, ctx) {
+  const a = input.id
+    ? await ctx.em.load(Author, input.id)
+    : ctx.em.create(Author, {});
+  if (input.name !== undefined) a.name = input.name;
+  if (input.bio  !== undefined) a.bio  = input.bio;
+  // ...20 more fields
+  if (input.bookIds)
+    a.books.set(
+      await ctx.em.loadAll(Book, input.bookIds));
+  await validateAuthor(a);
+  await db.insert(authors).values(a).returning();
+  return a;
+}
+```
+
+::right::
+
+**After** — `saveEntity`
+
+```ts
+import { saveEntity } from "src/resolvers/utils";
+
+export const saveAuthor = {
+  async saveAuthor(_, args, { em }) {
+    // Upsert and copy fields that map 1:1 automatically
+    const author = await saveEntity(em, Author, args.input);
+    // Run validations, reactions, and issue SQL calls
+    await em.flush();  
+    return { author };
+  },
+};
+```
 
 ---
 layout: center

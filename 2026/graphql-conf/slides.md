@@ -106,8 +106,8 @@ layout: two-cols-header
 
 ...at Homebound, we built
 
-- **Joist** — a rich entity/domain model in TypeScript
-- Using **GraphQL** as a *wire format* for models
+- A rich entity/domain model in TypeScript
+- Using **GraphQL** as a *wire format* for the graph
 - Fewer, lightweight resolvers
 - Graph-based traversals, graph-based auth, etc.
 - The domain model comes first
@@ -116,13 +116,21 @@ layout: two-cols-header
 
 </div>
 
+<div v-click="2">
+
+**Joist** &mdash; a TypeScript ORM for Majestic Monoliths
+
+</div>
+
 <!--
 I haven't worked at Facebook, but my understanding is that Ent already existed.
+
+Coincidentally, at Homebound we...
 -->
 
 ---
 
-# Codegen & Scaffolding
+# Workflow: Codegen & Scaffolding 🚀
 
 <div class="grid grid-cols-3 gap-6 text-sm mt-4">
 
@@ -254,11 +262,20 @@ async function someHelperMethod(a: Author) {
 }
 ```
 
+<!--
+
+Starting with the domain mode., Joist's first killer feature is...
+
+If your `someHelperMethod` does a `load`, it's still batched -- big change from
+most ORMs, like ActiveRecord, where you have to hoist loading/populate hints to the top.
+
+-->
+
 ---
 layout: two-cols-header
 ---
 
-# 2. Succinct Graph Traversal
+# 2. Type-Safe Graph Traversal
 
 <div class="text-lg -mt-1">"Load in a loop" is safe but ugly &mdash; instead populate shapes</div>
 
@@ -269,14 +286,10 @@ layout: two-cols-header
 ```ts
 const author = await em.load(Author, id);
 
-// compile error, the type system knows "books is not
-// loaded"; no TypeORM unloaded-at-runtime footguns
-console.log(author.books.get);
-
-// Forces safe await-based pattern by default
+// By default, relations force await usage
 const books = await author.books.load();
 
-// ...but boilerplately
+// ...fine but boilerplately
 const reviews = (await Promise.all(
   books.map(b => b.reviews.load())
 )).flat();
@@ -291,10 +304,9 @@ const fourStar = reviews
 ```ts
 // Typed as `Loaded<Author, { books: "reviews" }>`
 const author = await em.load(Author, id, {
-  // Database-backed m2o/o2m/m2m collections
+  // Any db-based m2o/o2m/m2m relations or
+  // user-defined relations in the Author entity
   books: "reviews",
-  // Or derived values, displayName is an async method
-  comments: "displayName"
 });
 
 // No awaits!
@@ -336,7 +348,6 @@ if (input.name?.length > 200)
 **After** — declared once, runs automatically
 
 ```ts
-// Author.ts
 // Simple field-level rule -- zod can do this
 authorConfig.addRule("name", (a) => {
   if (a.name.length > 200) return "name too long";
@@ -344,25 +355,31 @@ authorConfig.addRule("name", (a) => {
 
 // Cross-entity rules/invariants -- zod cannot do this
 authorConfig.addRule(
-  { books: "title" }, // Watch this subgraph
+  // Watch this subgraph
+  { books: { reviews: "rating" } },
   // Rerun this lambda whenever it changes
   (a) => {
-    if (a.books.get.some(b => b.title === a.name))
-      return "book title can't match author name";
+    const ratings = a.books.get
+      .flatMap(b => b.reviews.get)
+      .map(br => br.rating);
+    if (ratings.sum() < 0) {
+      return "aggregate rating must be positive";
+    }
   }
 );
-
-// Create reusable `cannot...` rules
-authorConfig.addRule(cannotBeUpdated("type"));
 ```
 
 ---
 layout: two-cols-header
 ---
 
-# 4. Derived Fields
+# 4. Graph Projections
 
-<div class="text-lg -mt-1">Let Joist track subgraph dependencies</div>
+<div class="text-lg -mt-1">
+
+Declarative `ReactiveField`s for derived values
+
+</div>
 
 ::left::
 
@@ -388,16 +405,18 @@ async function recalcFavorites(p: Publisher) {
 ```ts
 class Publisher {
   titlesOfFavoriteBooks = hasReactiveField(
+    // Watch this subgraph for changes
     { authors: { favoriteBook: "title" } },
+    // Call lambda to recalc whenever it changes
     (p) => p.authors.get
       .map(a => a.favoriteBook.get?.title)
       .compact().join(", ") || undefined,
   );
 }
 
-// call em.flush() recalcs any dirtied fields
+// All em.flush() calls recalc any dirtied fields
 //
-// when book1.title changes, Joist walks the "reverse
+// I.e. when book1.title changes, Joist walks the "reverse
 // path" of book -> author (favoriteBook) -> publisher
 // and recalcs titlesOfFavoriteBooks.
 ```
@@ -556,7 +575,7 @@ class: text-center
 <div class="mt-4 text-2xl text-left inline-block leading-relaxed">
 
 1. Build an Entity graph first
-2. Solve batching, validation, and business logic in the model
+2. Solve batching, validation, and business logic in the graph
 3. Then layer GraphQL on top as the wire format
 
 </div>

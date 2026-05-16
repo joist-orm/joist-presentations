@@ -38,9 +38,10 @@ fonts:
 <!--
 Hi, I'm Stephen Haberman, an engineer at Homebound, a VC-backed construction startup,
 where we don't sell SaaS, we actually build the homes; we have GC licenses in several
-states, and have built a GraphQL/TypeScript monolith to power our construction platform.
+states, and on the tech side have built a GraphQL/TypeScript monolith to power our
+construction platform.
 
-We use GraphQL heavily in our stack, and really love it, which leads me to the talk
+We use GraphQL heavily in our stack, and actually like it, which leads me to the talk
 today -- Making...
 
 ..aka...aka...
@@ -53,12 +54,7 @@ layout: default
 # Clients love GraphQL ♥️
 
 - **Relay** + **Apollo** set the bar for client-side DX
-- GraphQL "fat shapes" / subgraphs are super-easy to render
-- Even REST wants to *look* like GraphQL now
-
-<div v-click class="mt-12 text-joist text-2xl">
-GraphQL's client story is amazing
-</div>
+- GraphQL "fat shapes" / adhoc subgraphs are super-easy to render
 
 <!--
 No denying that frontends love GraphQL...
@@ -96,7 +92,7 @@ layout: two-cols-header
 - **GraphQL** — a *wire format* for querying Ent
 - Probably fewer, lightweight resolvers
 - Graph-based traversals, graph-based auth, etc.
-- The domain model came first
+- The graph came first
 
 </div>
 
@@ -110,7 +106,7 @@ layout: two-cols-header
 - Using **GraphQL** as a *wire format* for the graph
 - Fewer, lightweight resolvers
 - Graph-based traversals, graph-based auth, etc.
-- The domain model comes first
+- The graph comes first
 
 😅
 
@@ -245,10 +241,8 @@ const allBooks = await Promise.all(
 ```ts
 // Some big gnarly function
 async function someComplicatedLogic(authors: Author[]) {
-  // ...do some stuff...
   // note: _no up-front populate hint_
   await authors.asyncForEach(async (a) => {
-    // lots of lines
     await helerMethod(a);
   });
 }
@@ -275,7 +269,7 @@ most ORMs, like ActiveRecord, where you have to hoist loading/populate hints to 
 layout: two-cols-header
 ---
 
-# 2. Type-Safe Graph Traversal
+# 2. Succinct Graph Traversal
 
 <div class="text-lg -mt-1">"Load in a loop" is safe but ugly &mdash; instead populate shapes</div>
 
@@ -383,19 +377,21 @@ Declarative `ReactiveField`s for derived values
 
 ::left::
 
-**Before** — call `recalc` from every code path
+**Before** — call `update` from every code path
 
 ```ts
-async function recalcFavorites(p: Publisher) {
+// Calculated value, we "just remember" to call
+async function updateFavoriteTitles(p: Publisher) {
   const authors = await p.authors.load();
   p.titlesOfFavoriteBooks = authors
     .map(a => a.favoriteBook?.title)
     .filter(Boolean).join(", ");
 }
 
-// call from saveAuthor, deleteBook,
-// updateBook, importAuthors...
-// miss one → stale.
+// Then call `updateFavoriteTitles` from saveAuthor,
+// deleteBook, updateBook, importAuthors...
+
+// If we miss one → stale data. 😬
 ```
 
 ::right::
@@ -426,23 +422,24 @@ class Publisher {
 layout: two-cols-header
 ---
 
-# 5. Graph-based Auth
+# 5. Graph-Based Auth 🔑
 
 <div class="text-lg -mt-1">Bring your own query AST plugin</div>
 
 
 ::left::
 
-**Before** — `where tenant_id = ?` on every query
+**Before** — manually add `tenant_id` to every query
 
 ```ts
-// every query, everywhere
+// Every query adds `WHERE tenant_id = ?`
 await db.authors.where("tenant_id", tenantId);
 await db.books.where("tenant_id", tenantId);
 await db.reviews.where("tenant_id", tenantId);
 
-// every find, every join, every report...
-// miss one => cross-tenant data leak.
+// Every find, every join, every report...
+
+// Miss one => cross-tenant data leak 😬
 ```
 
 ::right::
@@ -453,6 +450,8 @@ await db.reviews.where("tenant_id", tenantId);
 class TenantPlugin extends Plugin {
   constructor(private tenantId: string) { super(); }
 
+  // All of the request's graph traversals
+  // (finds, joins, etc.) pass through this hook
   beforeFind(meta, query): void {
     for (const table of query.tables) {
       if (meta.fields.tenant) {
@@ -460,11 +459,10 @@ class TenantPlugin extends Plugin {
           alias: table.alias,
           column: "tenant_id",
           cond: { kind: "eq", value: this.tenantId },
-        });
-  } } }
+        }); } } }
 }
 
-// in your request handler
+// In your request handler
 em.addPlugin(new TenantPlugin(tenantId));
 ```
 

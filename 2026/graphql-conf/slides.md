@@ -27,7 +27,7 @@ fonts:
       <span v-mark="{ at: 1, type: 'strike-through', color: '#fc8a22' }">Putting the domain model on the wire</span>
     </div>
     <div v-click="1" class="text-2xl text-joist font-semibold italic">
-      Cloning Ent in TypeScript
+      cloning ent in typescript
     </div>
   </div>
   <div class="text-lg opacity-70 mt-5">
@@ -57,11 +57,13 @@ layout: default
 - GraphQL "fat shapes" / adhoc subgraphs are super-easy to render
 
 <!--
-No denying that frontends love GraphQL...
+First, I think it's pretty obvious that frontends love GraphQL...
 
 Relay & Apollo set the bar for client-side DX, with caching normalization, etc
 
 Graph are super-easy for FEs to render deep trees of data.
+
+GraphQL's client-side DX is really great, in my opinion.
 
 -->
 
@@ -83,13 +85,15 @@ Frontends drove GraphQL's peak hype, the backend DX killed it
 
 ...but the backend, maybe not so much.
 
-You can solve with boilerplate, typically a lot of boilerplate.
+We have N+1s by default.
 
-Validation scattered around, business scattered around.
+You can solve with DataLoader, typically a lot of boilerplate.
+
+Validation is potentially scattered around, business logic is scattered around.
 
 Auth we don't really talk about auth.
 
-Which leads me to assert, FEs drove GQL peak hype a few years, but the BE DX killed it.
+Which leads me to assert, that imo FEs drove GQL's peak hype a few years, but the BE DX killed it.
 
 Which made me curious, what about Facebook?
 -->
@@ -119,7 +123,7 @@ layout: two-cols-header
 ...coindentally, at Homebound, we built
 
 - A rich entity/domain model in TypeScript
-- Using **GraphQL** as a *wire format* to the graph
+- Using **GraphQL** as a *wire format*
 - Lightweight resolvers
 - Graph-based traversals, graph-based auth, etc.
 - The graph comes first
@@ -130,7 +134,7 @@ layout: two-cols-header
 
 <div v-click="2">
 
-**Joist** &mdash; a TypeScript ORM for Majestic Monoliths
+**Joist** &mdash; a TypeScript/Postgres ORM for Majestic Monoliths
 
 </div>
 
@@ -150,9 +154,9 @@ Coincidentally, at Homebound we...
 
 And our DX has been pretty great.
 
-We've been open-sourcing our work as Joist, a TypeScript ORM for Majestic Monoliths.
+And we've been open-sourcing our work as Joist, a TypeScript ORM for Majestic Monoliths.
 
-And I'm giving a whirlwind tour of our killer features.
+And I'm going to give a whirlwind tour of our killer features.
 -->
 
 ---
@@ -204,7 +208,7 @@ export class Author
 
 <div>
 
-**3. Schema**
+**3. GraphQL Schema**
 
 ```graphql
 # author.graphql, auto-generated
@@ -243,8 +247,7 @@ We treat the database as source of truth, so if you have an `authors table`, we 
 with the getter/setter boilerplate in the base class so you don't see it, and scaffold out the GraphQL schema.
 
 The scheme is a scaffolding, so you can delete fields you don't want exposed, or add new ones
-that aren't in the database, and we won't stomp your changes -- it ends up being like a prettier
-"inline snapshot" workflow.
+that aren't in the database, and we won't stomp your changes.
 
 And the scaffolding is evergreen, we keep running it after every change to the database, so it's
 always on/always helping us move fast.
@@ -255,7 +258,7 @@ always on/always helping us move fast.
 layout: two-cols-header
 ---
 
-# 1. Safe Graph Traversal
+# 1. Safe Graph Traversal 👷
 
 <div class="text-lg -mt-1">No N+1s &mdash; dataloaders for free</div>
 
@@ -316,10 +319,7 @@ can't get Joist to N+1.
 The other huge win of leveraging dataloader is that the batching is emergent -- you can decompose your
 code into smaller functions, and if those functions happen to load data -- that's fine, they're still batched.
 
-In other ORMs, like ActiveRecord, you end up having to refactor your code to "populate the data outside the
-loop", and it can be very tedious/restrictive to how your code is structured.
-
-This killer feature is foundational to everything else we do.
+This ability to decompose logic, without N+1s, is foundational to everything else we do.
 
 -->
 
@@ -377,7 +377,7 @@ So we've made "Load in a loop" is now safe, but it's still pretty ugly.
 On the left, as we're lazy-loading the object graph into memory, we have to await each individual relation load,
 because the type-system doesn't "know" if the data is there or not. -- lots of ugly `Promise.all` nesting.
 
-In Joist, instead we can use a single up-front `await` to populate the subgraph, and use TypeScript magic
+In Joist, instead we can use a single up-front `await` to populate the subgraph we want, and use TypeScript magic
 to decorate the types with synchronous getters -- now our business logic is very clean, just like synchornous
 collections, but the key point is that we only get these synchornous getters when the type system knows its
 safe -- no runtime errors about "relation not loaded".
@@ -388,7 +388,7 @@ safe -- no runtime errors about "relation not loaded".
 layout: two-cols-header
 ---
 
-# 3. Graph Validation
+# 3. Graph Validation ✅
 
 <div class="text-lg -mt-1">Invariants belong in entities &mdash; not mutations or endpoints</div>
 
@@ -453,7 +453,7 @@ the `name` changes, to validate it.
 
 But since we're in the graph, we can also write validation rules across a subgraph of data.
 
-Here, for the 2nd validation rule we're declaring for an author, we first declare the data
+Here, for the 2nd validation rule we're declaring for an author, we first declare the
 subgraph of that author's books & reviews that we care about for this invariant as the 1st param,
 
 And the 2nd parameter is the lambda that uses that data to evaluate the invariant.
@@ -527,15 +527,14 @@ Projections are derived values, i.e. columns in your database that are calculate
 we call reactive fields.
 
 On the left, when doing this by hand, you might have business logic like this `updateFavoriteTitles` function,
-that is kinda opaque about what data it loads/requires, and no one can see inside what it's doing,
-and you just have to remember to call it.
+that is kinda opaque about what data it loads, and you just have to remember to call it.
 
 In Joist, instead we leverage that we're in the graph, and so declaratively setup our field in the Publisher
-entity, and again the 1st param here is our data subgraph that we depend, of a publisher's authors/favoriteBook/title,
+entity, and again the 1st param here is our subgraph that we depend, of a publisher's authors/favoriteBook/title,
 
 And the 2nd parameter is the lambda to calculate the value.
 
-And again Joist will automatically track when these dependencies change, and invoke our lambda.
+And just like the last slide, Joist will automatically track when these dependencies change, and invoke our lambda.
 
 We really feel spoiled having this built in--it makes derived values very easy to add.
 
@@ -595,22 +594,21 @@ Implementing <code>RbacPlugin</code> is an exercise for the reader
 
 <!--
 
-Finally our last killer feature is Graph-Based Auth -- which is the feature that most lets
-us claim the "Ent clone" title, and it's not really "auth" per se, it's plugin-driven AST
-rewriting & field read/writes hooks.
+Finally our last killer feature is Graph-Based Auth -- although it's not really "auth" per se,
+it's plugin-base query rewriting.
 
-Auth is a good example use case for our plugin feature -- if you're in a tenant-based application,
+Auth is a good example use case for the feature -- so if you're in a tenant-based application,
 you have to add "where tenant_id = ?" clauses to every single query, and if you miss one, you have
 a cross-tenant data leak.
 
 With Joist, instead you can write a plugin with a `beforeFind` hook, and it will be given every
-query that's being used for graph traversal, and you can examine it, and rewrite it, i.e. inject 
+query that's used for graph traversal, and you can examine it, and rewrite it, i.e. inject 
 where clauses.
 
 Then in your request, you set up the TenantPlugin once, and get "auth for free".
 
-There's a lot more to do for real Rbac-based auth, which disclaimer still in the prototyping
-stages for, but the capabilities & infra are there.
+There's a lot more to do for real Rbac-based auth, which disclaimer we're still in the
+prototyping stages for that, but the capabilities & infra are there.
 
 -->
 
@@ -668,8 +666,8 @@ quickly at the "GraphQL layer on top".
 For our query resolvers, the left is an example of hand-writing field resolvers by hand,
 doing the right dataloader setup, etc
 
-With Joist, instead our query resolvers are mostly one-liners that "put the entity on the
-wire", for 90% of the fields/relations that are 1:1.
+With Joist, instead we have mostly one-liners that "put the entity on the
+wire", for 90% of the fields & relations that are 1:1.
 
 -->
 
@@ -731,7 +729,7 @@ With Joist, instead we drop the input into the graph, for the fields that map 1:
 and then call our `flush` method which just tells the graph to do it's thing.
 
 Run validation, recalc any derived values, and if everything is kosher,
-persist the data into the database. Short & sweet.
+persists the data into the database. Short & sweet.
 
 -->
 

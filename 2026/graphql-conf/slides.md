@@ -154,7 +154,7 @@ Coincidentally, at Homebound we...
 
 And our DX has been pretty great.
 
-And we've been open-sourcing our work as Joist, a TypeScript ORM for Majestic Monoliths.
+We've been open-sourcing our work as Joist, a TypeScript ORM for Majestic Monoliths.
 
 And I'm going to give a whirlwind tour of our killer features.
 -->
@@ -336,15 +336,20 @@ layout: two-cols-header
 **Before** — `Promise.all` soup
 
 ```ts
+// By default, relations force `await` usage
 const author = await em.load(Author, id);
 
-// By default, relations force await usage
+// ...fine but boilerplately
 const books = await author.books.load();
 
-// ...fine but boilerplately
 const reviews = (await Promise.all(
   books.map(b => b.reviews.load())
 )).flat();
+
+const comments = (await Promise.all(
+  reviews.map(r => r.comments.load())
+)).flat();
+
 const fourStar = reviews
   .filter(r => r.rating >= 4).length;
 ```
@@ -374,13 +379,13 @@ The next killer feature is succinct graph traversal --
 
 So we've made "Load in a loop" is now safe, but it's still pretty ugly.
 
-On the left, as we're lazy-loading the object graph into memory, we have to await each individual relation load,
-because the type-system doesn't "know" if the data is there or not. -- lots of ugly `Promise.all` nesting.
+On the left, as we're lazy-loading the object graph into memory, we have to await each individual load,
+and then "glue together" all the Promises -- leads to lots of ugly `Promise.all` soup.
 
-In Joist, instead we can use a single up-front `await` to populate the subgraph we want, and use TypeScript magic
-to decorate the types with synchronous getters -- now our business logic is very clean, just like synchornous
-collections, but the key point is that we only get these synchornous getters when the type system knows its
-safe -- no runtime errors about "relation not loaded".
+In Joist, instead we can use a single up-front `await` to populate the subgraph we want, and then Joist
+uses TypeScript magic to decorate our relations with synchronous getters -- now our business logic is very clean,
+just like synchronous collections, but the key point is that we only get these synchornous getters when
+the type system knows its safe.
 
 -->
 
@@ -442,8 +447,8 @@ authorConfig.addRule(
 Our next killer feature is putting validation into the Graph -- we believe invariants
 belong in the graph, not mutations or endpoints.
 
-On the left, we have probably typically "input-based validation" that is onsy-twosy
-looking at each input field in an endpoint/mutation, very canonical zod-style per-field validation.
+On the left, we have standard "input-based validation" that is onsy-twosy
+looking at each input field, typical zod-style per-field validation.
 
 In Joist, instead we push validation into the graph, and want the Author entity to own
 validation.
@@ -453,8 +458,8 @@ the `name` changes, to validate it.
 
 But since we're in the graph, we can also write validation rules across a subgraph of data.
 
-Here, for the 2nd validation rule we're declaring for an author, we first declare the
-subgraph of that author's books & reviews that we care about for this invariant as the 1st param,
+Here, for the author's 2nd validation rule, we first declare the subgraph of that author's
+books & reviews that we care about as the 1st param,
 
 And the 2nd parameter is the lambda that uses that data to evaluate the invariant.
 
@@ -521,16 +526,15 @@ class Publisher {
 
 <!--
 
-Our next killer feature is very related, we use the same "subgraph dependency" tracking for Graph Projections.
+Our 4th killer feature is Graph Projections, which are derived values.
 
-Projections are derived values, i.e. columns in your database that are calculated from other values, which
-we call reactive fields.
+I.e. columns in your database that are calculated from other values.
 
 On the left, when doing this by hand, you might have business logic like this `updateFavoriteTitles` function,
 that is kinda opaque about what data it loads, and you just have to remember to call it.
 
 In Joist, instead we leverage that we're in the graph, and so declaratively setup our field in the Publisher
-entity, and again the 1st param here is our subgraph that we depend, of a publisher's authors/favoriteBook/title,
+entity, and again the 1st param here is our subgraph that we depend on, of a publisher's authors/favoriteBook/title,
 
 And the 2nd parameter is the lambda to calculate the value.
 

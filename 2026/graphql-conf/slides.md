@@ -27,7 +27,7 @@ fonts:
       <span v-mark="{ at: 1, type: 'strike-through', color: '#fc8a22' }">Putting the domain model on the wire</span>
     </div>
     <div v-click="1" class="text-2xl text-joist font-semibold italic">
-      cloning ent in typescript
+      Cloning Ent in TypeScript
     </div>
   </div>
   <div class="text-lg opacity-70 mt-5">
@@ -54,14 +54,14 @@ layout: default
 # Clients love GraphQL ♥️
 
 - **Relay** + **Apollo** set the bar for client-side DX
-- GraphQL "fat shapes" / adhoc subgraphs are super-easy to render
+- GraphQL "fat shapes" / adhoc queries are super-easy to render
 
 <!--
 First, I think it's pretty obvious that frontends love GraphQL...
 
 Relay & Apollo set the bar for client-side DX, with caching normalization, etc
 
-Graph are super-easy for FEs to render deep trees of data.
+GraphQL's fat shapes / adhoc queries are super-easy for FEs to render deep trees of data.
 
 GraphQL's client-side DX is really great, in my opinion.
 
